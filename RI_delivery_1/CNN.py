@@ -1,83 +1,56 @@
-#!/usr/bin/env python
+#==================
+#=== TEST ZONE ====
+#==================
+csvpath = '/home/mroman/Master/images_train/'
+filepath = csvpath + 'images/'
 
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten, Conv2D, MaxPooling2D
-import numpy as np
+df = np.genfromtxt(csvpath + 'data.csv', dtype='<U8', delimiter=',')
+labels = df[1:,1]
+imgIDs = df[1:,0]
 
-#print(tf.__version__)
-
-#=== PARAMETERS ===
-batch_size = 32
-img_height = 128
-img_width = 128
-
-
-#=== LABEL DATA LOAD ===
-filepath = '/home/mroman/Master/images_train/'
-rawdata = np.genfromtxt(filepath + 'data.csv', dtype='<U8', delimiter=',')
-#print('data loaded')
-y = rawdata[1:,1]
-X = rawdata[1:,0]
-
-#=== CATEGORY MAPPING DICTIONARY GENERATION ===
+#=== LABEL FORMATTING ===
 dictID = {}
 IDcounter = 0
 y_num = []
-for textoutput in y:
+for textoutput in labels:
 	if textoutput not in dictID:
 		dictID[textoutput] = IDcounter
 		#print(textoutput, IDcounter)
 		IDcounter += 1
 	y_num.append(dictID[textoutput])
 
-#=== IMAGE LOAD ===
-import pathlib
-data_dir = pathlib.Path(filepath)
-train_ds = tf.keras.preprocessing.image_dataset_from_directory(
-  directory = filepath,
-  labels = y_num,
-  validation_split=0.2,
-  subset="training",
-  seed=123,
-  image_size=(img_height, img_width),
-  batch_size=batch_size)
+ty = np.array(y_num)[:,np.newaxis]
 
-#=== NETWORK STRUCTURE GENERATION ===
-CNN = Sequential()
+#=== FEATURES FORMATTING ===
+imageSet = []
+for imgID in imgIDs:
+	filename = str(filepath + "train_image_" + imgID.replace('\"', '') + ".png")
+	imgPIL = tf.keras.preprocessing.image.load_img(filename, color_mode="grayscale")
+	arr = tf.keras.preprocessing.image.img_to_array(imgPIL)
+	imageSet.append([[arr]])
 
-CNN.add(Conv2D(filters=64, kernel_size=(3,3), input_shape=(128,128,3)))
-CNN.add(Activation('relu'))
-CNN.add(MaxPooling2D(pool_size=(2,2)))
+tx = np.array(imageSet)[:,0,0,:,:,:]
 
-CNN.add(Conv2D(filters=64, kernel_size=(3,3), input_shape=(128,128,3)))
-CNN.add(Activation('relu'))
-CNN.add(MaxPooling2D(pool_size=(2,2)))
-
-CNN.add(Flatten())
-CNN.add(Dense(units=64))
-
-CNN.add(Dense(units=1, activation('softmax')))
-
-CNN.summary()
-
-CNN.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
- 
-
-CNN.fit(train_ds, epochs=10)
-CNN.save(
-    filepath, overwrite=True, include_optimizer=True, save_format=None,
-    signatures=None, options=None
-)
+#=== MODEL BUILDING ===
+num_train, img_rows, img_cols, img_channels =  tx.shape
+num_classes = len(np.unique(ty))
 
 
+checkpoint_path = csvpath + "guardado.ckpt"
+cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
 
 
+model = Sequential()
+model.add(Conv2D(filters=img_rows, kernel_size=(3, 3), padding='same', activation='relu', input_shape = [img_rows, img_cols, img_channels]))
 
+model.add(Conv2D(filters=img_rows, kernel_size=(3, 3), padding='same', activation='relu'))
+model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
+model.add(Dropout(0.5))
 
+model.add(Flatten())
+model.add(Dense(units = 128, activation='relu'))
+model.add(Dense(units=num_classes, activation='softmax'))
 
-
-
-
-
+model.compile(optimizer='adam', loss = 'sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
+history = model.fit(tx,ty, batch_size=10, epochs=10, verbose=1, callbacks=[cp_callback])
 
