@@ -1,6 +1,24 @@
-#==================
-#=== TEST ZONE ====
-#==================
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten, Conv2D, MaxPooling2D
+import numpy as np
+#https://www.codingforentrepreneurs.com/blog/install-tensorflow-gpu-windows-cuda-cudnn/
+#=== FUNCTIONS ====
+def unison_shuffle(a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
+
+import math
+def splitdata(a, b, fraction):
+	assert len(a) == len(b)
+	length = len(a)
+	train_num = math.floor(length * (1-fraction))
+	return(a[0:train_num],b[0:train_num],a[train_num:],b[train_num:])
+
+#===============
+#=== SCRIPT ====
+#===============
 csvpath = '/home/mroman/Master/images_train/'
 filepath = csvpath + 'images/'
 
@@ -21,6 +39,7 @@ for textoutput in labels:
 
 ty = np.array(y_num)[:,np.newaxis]
 
+
 #=== FEATURES FORMATTING ===
 imageSet = []
 for imgID in imgIDs:
@@ -29,12 +48,21 @@ for imgID in imgIDs:
 	arr = tf.keras.preprocessing.image.img_to_array(imgPIL)
 	imageSet.append([[arr]])
 
-tx = np.array(imageSet)[:,0,0,:,:,:]
+tx = (np.array(imageSet)[:,0,0,:,:,:] / 255).astype('float16')
+
+
+#=== DATA SPLIT ===
+randtx, randty = unison_shuffle(tx,ty)
+a,b,c,d = splitdata(randtx,randty,0.05)
+
+
+
+
+
 
 #=== MODEL BUILDING ===
-num_train, img_rows, img_cols, img_channels =  tx.shape
-num_classes = len(np.unique(ty))
-
+num_train, img_rows, img_cols, img_channels =  a.shape
+num_classes = len(dictID)
 
 checkpoint_path = csvpath + "guardado.ckpt"
 cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
@@ -42,15 +70,22 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_o
 
 model = Sequential()
 model.add(Conv2D(filters=img_rows, kernel_size=(3, 3), padding='same', activation='relu', input_shape = [img_rows, img_cols, img_channels]))
-
 model.add(Conv2D(filters=img_rows, kernel_size=(3, 3), padding='same', activation='relu'))
 model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='valid'))
 model.add(Dropout(0.5))
-
 model.add(Flatten())
 model.add(Dense(units = 128, activation='relu'))
 model.add(Dense(units=num_classes, activation='softmax'))
 
 model.compile(optimizer='adam', loss = 'sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
-history = model.fit(tx,ty, batch_size=10, epochs=10, verbose=1, callbacks=[cp_callback])
+
+
+
+
+history = model.fit(a, b, batch_size=16, epochs=10, verbose=1, callbacks=[cp_callback])
+
+#history = model.fit(tx,ty, batch_size=32, epochs=10, verbose=1, callbacks=[cp_callback])
+
+model.evaluate(c)
+
 
