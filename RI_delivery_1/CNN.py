@@ -38,6 +38,7 @@ imgIDs = df[1:,0]
 
 #=== LABEL FORMATTING ===
 
+# text-to-integer mapping and dictionary generation
 dictID = {}
 IDcounter = 0
 y_num = []
