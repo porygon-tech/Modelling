@@ -147,7 +147,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_o
 
 model.fit(tx,ty, batch_size=32, epochs=10, verbose=1, callbacks=[cp_callback])
 
-
+#some additional data visualization examples:
 showdata(tx,5)
 ty[5,0]
 dictID['"eë"']
