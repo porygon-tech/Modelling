@@ -35,3 +35,8 @@ dataset[:,-1] #GDP to predict
 
 x = dataset[:,:-1]
 y = dataset[:,-1]
+
+indexes_2010 = np.where((x[:,1]==2010))
+x_2010 = x[indexes_2010]
+x = np.delete(x, indexes_2010, 0)
+y = np.delete(y, indexes_2010, 0)
